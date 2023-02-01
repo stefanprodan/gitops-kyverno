@@ -1,0 +1,45 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: resolve-image-to-digest
+  annotations:
+    policies.kyverno.io/title: Resolve Image to Digest
+    policies.kyverno.io/category: PSP
+    policies.kyverno.io/subject: Deployment
+    policies.kyverno.io/description: >-
+      This policy resolves the image digest of each image in a container and replaces
+      the image with the fully resolved reference which includes the digest rather than tag.
+spec:
+  background: false
+  rules:
+    - name: resolve-to-digest
+      match:
+        resources:
+          kinds:
+            - Deployment
+          namespaceSelector:
+            matchExpressions:
+              - key: toolkit.fluxcd.io/tenant
+                operator: In
+                values:
+                  - dev-team
+      preconditions:
+        all:
+          - key: "{{request.operation || 'BACKGROUND'}}"
+            operator: NotEquals
+            value: DELETE
+      mutate:
+        foreach:
+          - list: "request.object.spec.template.spec.containers"
+            context:
+              - name: resolvedRef
+                imageRegistry:
+                  reference: "{{ element.image }}"
+                  jmesPath: "resolvedImage"
+            patchStrategicMerge:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: "{{ element.name }}"
+                        image: "{{ resolvedRef }}"
