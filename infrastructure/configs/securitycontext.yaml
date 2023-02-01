@@ -16,8 +16,12 @@ spec:
         resources:
           kinds:
             - Deployment
-          namespaces:
-            - test
+          namespaceSelector:
+            matchExpressions:
+              - key: toolkit.fluxcd.io/tenant
+                operator: In
+                values:
+                  - dev-team
       mutate:
         patchStrategicMerge:
           spec:
