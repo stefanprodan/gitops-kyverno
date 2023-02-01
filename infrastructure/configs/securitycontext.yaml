@@ -1,0 +1,40 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-default-securitycontext
+  annotations:
+    policies.kyverno.io/title: Add Default securityContext
+    policies.kyverno.io/category: PSP
+    policies.kyverno.io/subject: Deployment
+    policies.kyverno.io/description: >-
+      This policy will mutate a Deployment to set a restricted securityContext for the pod and containers
+      if they are not already set.
+spec:
+  rules:
+    - name: add-default-securitycontext
+      match:
+        resources:
+          kinds:
+            - Deployment
+          namespaces:
+            - test
+      mutate:
+        patchStrategicMerge:
+          spec:
+            template:
+              spec:
+                securityContext:
+                  +(runAsNonRoot): true
+                  +(runAsUser): 1000
+                  +(runAsGroup): 3000
+                  +(fsGroup): 1337
+                containers:
+                  - (name): "*"
+                    securityContext:
+                      +(allowPrivilegeEscalation): false
+                      +(readOnlyRootFilesystem): true
+                      +(runAsNonRoot): true
+                      +(capabilities):
+                        drop: [ "ALL" ]
+                      +(seccompProfile):
+                        type: RuntimeDefault
